@@ -90,9 +90,6 @@ int main() {
         exit(1);
     }
     printf("[+] Listening for incoming connections...\n");
-
-    signal(SIGCHLD, SIG_IGN);  // Prevent zombie processes
-
     while (1) {
         int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &addr_size);
         if (clientSocket < 0) {
@@ -120,7 +117,6 @@ int main() {
             close(clientSocket);
         }
     }
-
     close(serverSocket);
     printf("[+] Server shutdown.\n");
 

@@ -76,13 +76,13 @@ int main() {
         exit(1);
     }
     printf("[+] Bound to Port %d\n", PORT);
-
+    while(1){
     if (listen(serverSocket, 5) < 0) {
         perror("[-] Listen failed");
         exit(1);
     }
     printf("[+] Listening for incoming connections...\n");
-
+    
     clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &addr_size);
     if (clientSocket < 0) {
         perror("[-] Accept failed");
@@ -109,11 +109,11 @@ int main() {
     // Wait for both threads to finish
     pthread_join(send_thread, NULL);
     pthread_join(recv_thread, NULL);
-
+    }
     close(clientSocket);
     close(serverSocket);
     printf("[+] Connection closed.\n");
-
+    
     return 0;
 }
 
