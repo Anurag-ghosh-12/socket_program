@@ -32,22 +32,21 @@ int main() {
         error("[-]Connection Failed");
     }
 
-    printf("Enter number of elements: ");
+    printf("Enter number of elements then elements: ");
     scanf("%d", &numElements);
-
+    elements[0]=numElements;
     
-    printf("Enter the elements: ");
-    for (int i = 0; i < numElements; i++) {
+    for (int i = 1; i <= numElements; i++) {
         scanf("%d", &elements[i]);
     }
-
-    int numElementsNetworkOrder = htonl(numElements); 
-    if (send(sockfd, &numElementsNetworkOrder, sizeof(numElementsNetworkOrder), 0) < 0) {
-        error("[-]Failed to send number of elements");
-    }
+    
+    //int numElementsNetworkOrder = htonl(numElements); 
+    //if (send(sockfd, &numElementsNetworkOrder, sizeof(numElementsNetworkOrder), 0) < 0) {
+      //  error("[-]Failed to send number of elements");
+    //}
 
     // Sending the elements
-    if (send(sockfd, elements, numElements * sizeof(int), 0) < 0) {
+    if (send(sockfd, elements, (numElements+1) * sizeof(int), 0) < 0) {
         error("[-]Failed to send elements");
     }
     int result[MAX_BUFFER_SIZE];

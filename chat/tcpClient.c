@@ -5,10 +5,62 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #define PORT 8081
 #define MAX_BUFFER_SIZE 1024
 
+int clientSocket;
+volatile int chat_active = 1;
+
+void str_overwrite_stdout() {
+  printf("\r%s",">");
+  fflush(stdout);
+}
+
+void * receive_message(void * arg)
+{
+  int clientSocket=*(int *)arg;
+  char buffer[MAX_BUFFER_SIZE];
+  while (chat_active) {
+        memset(buffer, 0, sizeof(buffer));
+        int recv_len = recv(clientSocket, buffer, MAX_BUFFER_SIZE, 0);
+        
+        if (recv_len <= 0) {
+            perror("[-] Connection closed or error occurred");
+            chat_active = 0;
+            break;
+        }
+
+        printf("\nServer: %s\n", buffer);
+        str_overwrite_stdout();
+        if (strncmp(buffer, "Bye", 3) == 0) {
+            printf("[+] Server ended the chat session.\n");
+            chat_active = 0;
+            break;
+        }
+    }
+    return NULL;
+}
+
+void * send_message(void * arg)
+{
+    char buffer[MAX_BUFFER_SIZE];
+    int clientSocket = *(int *) arg;
+    while (chat_active) {
+        str_overwrite_stdout();
+        fgets(buffer, sizeof(buffer), stdin);
+        buffer[strcspn(buffer, "\n")] = '\0';  // Remove newline
+
+        send(clientSocket, buffer, strlen(buffer), 0);
+
+        if (strncmp(buffer, "Bye", 3) == 0) {
+            chat_active = 0;
+            break;
+        }
+    }
+    return NULL;
+}
 int main() {
     int clientSocket;
     struct sockaddr_in serverAddr;
@@ -28,7 +80,7 @@ int main() {
     // Server details
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(PORT);
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    serverAddr.sin_addr.s_addr = inet_addr("10.1.76.64");
 
     // Connect to server
     if (connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
@@ -63,39 +115,14 @@ int main() {
     printf("Type 'Bye' to end the chat.\n");
     printf("---------------------------------------------\n");
 
-    while (1) {
-        // Get message from user
-        printf("You: ");
-        fgets(msg, sizeof(msg), stdin);
-        msg[strcspn(msg, "\n")] = '\0'; // Remove newline
-
-        // Send message to server
-        if (send(clientSocket, msg, strlen(msg), 0) < 0) {
-            perror("[-] Sending failed");
-            break;
-        }
-
-        if (strncmp(msg, "Bye", 3) == 0) {
-            printf("[+] Chat session ended by you.\n");
-            break;
-        }
-
-        // Receive message from server
-        memset(buffer, 0, sizeof(buffer));
-        if (recv(clientSocket, buffer, MAX_BUFFER_SIZE, 0) <= 0) {
-            perror("[-] Server disconnected or error occurred");
-            break;
-        }
-
-        printf("Server: %s\n", buffer);
-        if (strncmp(buffer, "Bye", 3) == 0) {
-            printf("[+] Server ended the chat session.\n");
-            break;
-        }
-        printf("---------------------------------------------\n");
-    }
-
-    // Close socket
+    pthread_t send_thread, receive_thread;
+    pthread_create(&send_thread, NULL, send_message, &clientSocket);
+    pthread_create(&receive_thread, NULL, receive_message, &clientSocket);
+    
+    //wait for both treads to finish
+    pthread_join(send_thread, NULL);
+    pthread_join(receive_thread, NULL);
+   
     close(clientSocket);
     printf("[+] Connection closed.\n");
 

@@ -12,17 +12,25 @@
 int clientSocket;
 volatile int chat_active = 1; // Shared flag to control chat session
 
+void str_overwrite_stdout() {
+  printf("\r%s",">");
+  fflush(stdout);
+}
+
 void* send_message(void* arg) {
     char buffer[MAX_BUFFER_SIZE];
-    
+    int clientSocket = *(int *) arg;
     while (chat_active) {
-        printf("You: ");
+        str_overwrite_stdout();
         fgets(buffer, sizeof(buffer), stdin);
         buffer[strcspn(buffer, "\n")] = '\0';  // Remove newline
-
         send(clientSocket, buffer, strlen(buffer), 0);
 
         if (strncmp(buffer, "Bye", 3) == 0) {
+            printf("[+] You ended the chat session.\n");
+            close(clientSocket);
+            printf("[+] Server-Client Connection closed.\n");
+            
             chat_active = 0;
             break;
         }
@@ -32,7 +40,7 @@ void* send_message(void* arg) {
 
 void* receive_message(void* arg) {
     char buffer[MAX_BUFFER_SIZE];
-    
+    int clientSocket= *(int *)arg;
     while (chat_active) {
         memset(buffer, 0, sizeof(buffer));
         int recv_len = recv(clientSocket, buffer, MAX_BUFFER_SIZE, 0);
@@ -44,9 +52,12 @@ void* receive_message(void* arg) {
         }
 
         printf("\nClient: %s\n", buffer);
-
+        str_overwrite_stdout();
         if (strncmp(buffer, "Bye", 3) == 0) {
             printf("[+] Client ended the chat session.\n");
+            close(clientSocket);
+            printf("[+] Server-Client Connection closed.\n");
+            
             chat_active = 0;
             break;
         }
@@ -69,14 +80,13 @@ int main() {
 
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(PORT);
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    serverAddr.sin_addr.s_addr = inet_addr("10.2.65.33");
 
     if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
         perror("[-] Bind failed");
         exit(1);
     }
     printf("[+] Bound to Port %d\n", PORT);
-    while(1){
     if (listen(serverSocket, 5) < 0) {
         perror("[-] Listen failed");
         exit(1);
@@ -103,16 +113,15 @@ int main() {
     printf("\n--- Chat Mode Activated ---\nType 'Bye' to end the chat.\n");
 
     // Create sending and receiving threads
-    pthread_create(&send_thread, NULL, send_message, NULL);
-    pthread_create(&recv_thread, NULL, receive_message, NULL);
+    pthread_create(&send_thread, NULL, send_message, &clientSocket);
+    pthread_create(&recv_thread, NULL, receive_message, &clientSocket);
 
     // Wait for both threads to finish
     pthread_join(send_thread, NULL);
     pthread_join(recv_thread, NULL);
-    }
-    close(clientSocket);
+    
     close(serverSocket);
-    printf("[+] Connection closed.\n");
+    printf("[+] Server closed.\n");
     
     return 0;
 }

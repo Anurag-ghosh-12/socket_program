@@ -23,30 +23,36 @@ void handleClient(int clientSocket) {
     int numElements;
     int elements[MAX_BUFFER_SIZE];
     char buffer[MAX_BUFFER_SIZE];
-    if (recv(clientSocket, &numElements, sizeof(numElements), 0) <= 0) {
+    if (recv(clientSocket, elements, MAX_BUFFER_SIZE, 0) <= 0) {
         perror("[-]Failed to receive number of elements");
         close(clientSocket);
         return;
     }
-    numElements = ntohl(numElements); 
-    
-    if (recv(clientSocket, elements, numElements * sizeof(int), 0) <= 0) {
+    numElements = elements[0]; 
+    //int *temp =&elements[1];
+    int temp[numElements];
+    for(int i=1;i<=numElements;i++)
+    {
+       temp[i-1]=elements[i];
+    }
+    /*if (recv(clientSocket, elements, numElements * sizeof(int), 0) <= 0) {
         perror("[-]Failed to receive elements");
         close(clientSocket);
         return;
-    }
+    }*/
+    
     printf("Received data:----------\n");
     printf("The number of elements:\t%d\n",numElements);
     printf("The elements are:\t");
     for(int i=0;i<numElements;i++)
     {
-        printf("%d\t",elements[i]);
+        printf("%d\t",temp[i]);
     }
     printf("\n");
     // Sorting the elements
-    insertionSort(elements, numElements);
+    insertionSort(temp, numElements);
     // Send the sorted elements back to the client
-    if (send(clientSocket, elements, numElements * sizeof(int), 0) <= 0) {
+    if (send(clientSocket, temp, numElements * sizeof(int), 0) <= 0) {
         perror("[-]Failed to send sorted elements");
     }
 

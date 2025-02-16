@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include <arpa/inet.h>
 
-#define PORT 1235
+#define PORT 3490
 #define MAX_BUFFER_SIZE 1024
 
 void insertionSort(int arr[], int n) {
@@ -22,42 +22,50 @@ void insertionSort(int arr[], int n) {
 }
 
 void* handleClient(void* socketDesc) {//void * because pthread_create expects a void * as 4th argument
-    int clientSocket = *(int*)socketDesc;
+    int new_socket = *(int*)socketDesc;
     free(socketDesc); // Free the dynamically allocated memory for socket descriptor, because now thread handles it
-
-    int numElements;
-    int elements[MAX_BUFFER_SIZE];
-
-    if (recv(clientSocket, &numElements, sizeof(numElements), 0) <= 0) {
-        perror("[-]Failed to receive number of elements");
-        close(clientSocket);
-        pthread_exit(NULL);
-    }
-    numElements = ntohl(numElements);
-
-    if (recv(clientSocket, elements, numElements * sizeof(int), 0) <= 0) {
-        perror("[-]Failed to receive elements");
-        close(clientSocket);
-        pthread_exit(NULL);
+    //int elements[MAX_BUFFER_SIZE];
+    char buffer[MAX_BUFFER_SIZE];
+    // Receive data
+    int bytes_received = recv(new_socket, buffer, MAX_BUFFER_SIZE, 0);
+    if (bytes_received <= 0) {
+        perror("Receive failed");
+        close(new_socket);
+        exit(EXIT_FAILURE);
     }
 
-    printf("Received data:\n");
-    printf("Number of elements: %d\n", numElements);
-    printf("Elements: ");
+    // (first 2 bytes)
+    uint16_t numElements;
+    memcpy(&numElements, buffer, 2);
+    numElements = ntohs(numElements);
+
+    printf("Received %d elements from client.\n", numElements);
+
+    int elements[numElements];
     for (int i = 0; i < numElements; i++) {
-        printf("%d ", elements[i]);
+        memcpy(&elements[i], buffer + 2 + i * 4, 4);
+        elements[i] = ntohl(elements[i]); 
+        printf("%d\t",elements[i]);
     }
     printf("\n");
-
-    // Sorting the elements
+    // Sort the elements
     insertionSort(elements, numElements);
 
-    // Send the sorted elements back to the client
-    if (send(clientSocket, elements, numElements * sizeof(int), 0) <= 0) {
-        perror("[-]Failed to send sorted elements");
+    //  response
+    char response[MAX_BUFFER_SIZE] = {0};
+    uint16_t numElementsNet = htons(numElements);
+    memcpy(response, &numElementsNet, 2);
+
+    for (int i = 0; i < numElements; i++) {
+        int sortedValue = htonl(elements[i]);
+        memcpy(response + 2 + i * 4, &sortedValue, 4);
     }
 
-    close(clientSocket);
+    // Send back the sorted array
+    send(new_socket, response, 2 + numElements * 4, 0);
+    printf("Sorted elements sent back to client.\n");
+    
+    close(new_socket);
     pthread_exit(NULL);
 }
 
@@ -76,7 +84,7 @@ int main() {
 
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(PORT);
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    serverAddr.sin_addr.s_addr = inet_addr("10.2.65.33");
 
     if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
         perror("[-]Binding failed");
@@ -107,7 +115,7 @@ int main() {
             perror("[-]Thread creation failed");
             free(newSocket);
         } else {
-            pthread_detach(thread_id); // Detach the thread to clean up resources automatically
+            pthread_detach(thread_id); // Detaching the thread to clean up
         }
     }
 
