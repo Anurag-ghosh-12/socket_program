@@ -51,9 +51,7 @@ void * send_message(void * arg)
         str_overwrite_stdout();
         fgets(buffer, sizeof(buffer), stdin);
         buffer[strcspn(buffer, "\n")] = '\0';  // Remove newline
-
         send(clientSocket, buffer, strlen(buffer), 0);
-
         if (strncmp(buffer, "Bye", 3) == 0) {
             chat_active = 0;
             break;

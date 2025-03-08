@@ -5,7 +5,7 @@
 #include <arpa/inet.h>
 
 // Anurag Ghosh 2022CSB101
-#define PORT 3490
+#define PORT 8080
 #define MAX_BUFFER_SIZE 1024
 #define MAX_ELEMENTS 65535 // 2-byte limit
 
@@ -26,7 +26,7 @@ int main() {
 
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(PORT);
-    serverAddr.sin_addr.s_addr = inet_addr("10.2.59.27"); // 10.2.65.33 in lab
+    serverAddr.sin_addr.s_addr = inet_addr("10.2.65.25"); // 10.2.65.33 in lab
 
     if (connect(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
         error("[-]Connection Failed");
