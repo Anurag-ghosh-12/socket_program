@@ -28,7 +28,7 @@ int main() {
     int choice;
 
     // Creating the socket
-    clientSocket = socket(PF_INET, SOCK_STREAM, 0);
+    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (clientSocket < 0) {
         perror("[-] Socket creation failed");
         exit(1);

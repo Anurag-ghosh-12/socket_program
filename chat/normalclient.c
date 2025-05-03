@@ -23,7 +23,7 @@ int main() {
     printf("[+] Client Socket Created Successfully\n");
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(PORT);
-    serverAddr.sin_addr.s_addr = inet_addr("10.2.79.114");
+    serverAddr.sin_addr.s_addr = inet_addr("10.2.65.33");
 
     if (connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
         perror("[-] Connection failed");
@@ -81,10 +81,8 @@ int main() {
         }
         printf("---------------------------------------------\n");
     }
-
     close(clientSocket);
     printf("[+] Connection closed.\n");
-
     return 0;
 }
 

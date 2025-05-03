@@ -7,7 +7,8 @@
 #define PORT 1235
 #define BUFFER_SIZE 1024
 
-void insertionSort(int *arr, int n) {
+void insertionSort(int *arr, int n) 
+{
     for (int i = 1; i < n; i++) {
         int key = arr[i];
         int j = i - 1;
@@ -18,7 +19,9 @@ void insertionSort(int *arr, int n) {
         arr[j + 1] = key;
     }
 }
-int main() {
+
+int main() 
+{
     int server_fd, new_socket;
     struct sockaddr_in address;
     socklen_t addrlen = sizeof(address);
@@ -30,7 +33,7 @@ int main() {
     }
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    address.sin_addr.s_addr = inet_addr("10.2.65.33");
     address.sin_port = htons(PORT);
     
     if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
@@ -50,7 +53,7 @@ int main() {
         perror("Accept failed");
         exit(EXIT_FAILURE);
     }
-
+    
     // Receive data
     int bytes_received = recv(new_socket, buffer, BUFFER_SIZE, 0);
     if (bytes_received <= 0) {
@@ -89,9 +92,10 @@ int main() {
     // Send back the sorted array
     send(new_socket, response, 2 + numElements * 4, 0);
     printf("Sorted elements sent back to client.\n");
-
+    
     close(new_socket);
     close(server_fd);
+    
     return 0;
 }
 

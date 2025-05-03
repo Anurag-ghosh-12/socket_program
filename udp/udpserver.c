@@ -9,17 +9,17 @@
 
 uint8_t errorcode = 0;
 
-int checkerror_TTL(char ttl) {
-    if (ttl & 1 == 0) {
+int checkerror_TTL(uint8_t ttl) {
+    if (ttl % 2 == 0) {
         return 0;
     } else {
-      //  printf("%d\n", (int)ttl);
+        //printf("%d\n", (int)ttl);
         errorcode = 4;
         return 4;
     }
 }
 
-int checkerror_sanity(char *msg, uint32_t PL, int received_length) {
+int checkerror_sanity(uint32_t PL, int received_length) {
     if(PL<100 )
     {
       errorcode=1;
@@ -30,7 +30,7 @@ int checkerror_sanity(char *msg, uint32_t PL, int received_length) {
       errorcode=3;
       return 3;//too large payload length for udp
     }
-    if (received_length - 8 != PL) {  
+    if (received_length < (PL + 8) || received_length>1008) {  
         //printf("Received length: %d, Expected: %u\n", received_length - 8, PL);
         errorcode = 2;
         return 2;
@@ -39,6 +39,7 @@ int checkerror_sanity(char *msg, uint32_t PL, int received_length) {
 }
 
 int display(int error) {
+//tried this for better understanding, generally printing should be avoided at server as it affects RTT 
     if (error == 0) {
         return 0;
     }
@@ -68,7 +69,7 @@ void handleclient(int serversocket, struct sockaddr_in *clientaddr, socklen_t ad
         return;
     }
 
-    //printf("Received from client: %s\n", buffer);
+    printf("Received from client: %d\n", recv_len);
 
     uint8_t MT;
     memcpy(&MT, buffer, 1);  // MT - Message Type
@@ -76,21 +77,19 @@ void handleclient(int serversocket, struct sockaddr_in *clientaddr, socklen_t ad
     uint16_t SN;  // Sequence number
     memcpy(&SN, buffer + 1, 2);
     
-    char TTL;
+    uint8_t TTL;
     memcpy(&TTL, buffer + 3, 1);  // TTL - Time to Live
     //TTL=ntohs(TTL);
+    //printf("%" PRId8 "\n", TTL);
     
     uint32_t PL;
     memcpy(&PL, buffer + 4, 4);
     PL = ntohl(PL);  
 
-    char msg[MAX_BUFFER_SIZE];
-    memcpy(msg, buffer + 8, PL);
-    msg[PL] = '\0';
 
     //printf("Received length: %d, Expected: %u\n", recv_len - 8, PL);
 
-    int error1 = checkerror_sanity(msg, PL, recv_len);
+    int error1 = checkerror_sanity(PL, recv_len);
 
     int error2 = checkerror_TTL(TTL);
 
@@ -98,7 +97,7 @@ void handleclient(int serversocket, struct sockaddr_in *clientaddr, socklen_t ad
         char errmsg[MAX_BUFFER_SIZE];
         memset(errmsg, 0, MAX_BUFFER_SIZE);
         
-        uint8_t var = 1;
+        uint8_t var = 2;
         memcpy(errmsg, &var, 1);
         memcpy(errmsg + 1, &SN, 2);
         memcpy(errmsg + 3, &errorcode, 1);
@@ -107,9 +106,36 @@ void handleclient(int serversocket, struct sockaddr_in *clientaddr, socklen_t ad
         return;
     }
 
+    char msg[MAX_BUFFER_SIZE];
+    memcpy(msg, buffer + 8, PL);
+    msg[PL] = '\0';
+    
     // Send acknowledgment
-    const char *response = "Message received";
-    sendto(serversocket, response, strlen(response), 0, (struct sockaddr *)clientaddr, addr_size);
+    //const char *response = "Message received";
+    //sendto(serversocket, response, strlen(response), 0, (struct sockaddr *)clientaddr, addr_size);
+    // Prepare response packet (ACK) in the same format)
+	char response_buf[MAX_BUFFER_SIZE];
+	memset(response_buf, 0, MAX_BUFFER_SIZE);
+
+	uint8_t ack_MT = 1;           // MT = 1 for ACK
+	uint16_t ack_SN = SN + 1;    
+	uint8_t ack_TTL = TTL - 1;    // TTL decremented
+
+	const char *ack_payload = "Message received";
+	uint32_t ack_PL = strlen(ack_payload);  // Payload length
+	uint32_t ack_PL_net = htonl(ack_PL);    // Convert to network byte order
+
+	memcpy(response_buf, &ack_MT, 1);             // MT
+	memcpy(response_buf + 1, &ack_SN, 2);         // SN
+	memcpy(response_buf + 3, &ack_TTL, 1);        // TTL
+	memcpy(response_buf + 4, &ack_PL_net, 4);     // PL
+	memcpy(response_buf + 8, ack_payload, ack_PL); // Payload
+
+	int total_response_len = 8 + ack_PL;
+
+	// Send the response
+	sendto(serversocket, response_buf, total_response_len, 0, (struct sockaddr *)clientaddr, addr_size);
+
 }
 
 int main(int argc, char *argv[]) {
@@ -135,7 +161,7 @@ int main(int argc, char *argv[]) {
     serveraddr.sin_family = AF_INET;
     serveraddr.sin_port = htons(port);
     serveraddr.sin_addr.s_addr =inet_addr("10.2.65.33");
-
+//10.2.65.33 tested in college server
     // Bind the socket to the port
     if (bind(serversocket, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0) {
         perror("bind() failed");

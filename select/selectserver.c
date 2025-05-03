@@ -97,12 +97,14 @@ int setupserver(int port, int backlog) {
 }
 
 // Accept a new client connection
-int accept_new_connection(int server_socket) {
+int accept_new_connection(int server_socket)
+{
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
     int client_fd = accept(server_socket, (struct sockaddr*)&client_addr, &addr_len);
     
-    if (client_fd < 0) {
+    if (client_fd < 0) 
+    {
         perror("Accept failed");
         exit(EXIT_FAILURE);
     }

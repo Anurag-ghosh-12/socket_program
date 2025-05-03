@@ -13,8 +13,8 @@ void error(const char *msg) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 6) {
-        fprintf(stderr, "Usage: %s <ServerIP> <ServerPort> <P> <TTL> <NumPackets>\n", argv[0]);
+    if (argc != 7) {
+        fprintf(stderr, "Usage: %s <ServerIP> <ServerPort> <P> <TTL> <NumPackets> <Filename>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -23,6 +23,7 @@ int main(int argc, char *argv[]) {
     int P = atoi(argv[3]);
     int TTL = atoi(argv[4]);
     int NumPackets = atoi(argv[5]);
+    char *filename = argv[6];
 
     /*if (P < 100 || P > 1000 || TTL < 2 || TTL > 20 || TTL % 2 != 0 || NumPackets < 1 || NumPackets > 50) {
         // Display the input parameters
@@ -34,14 +35,13 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Invalid input parameters. Ensure P in [100, 1000], TTL in [2, 20] (even), and NumPackets in [1, 50].\n");
         exit(EXIT_FAILURE);
     }*/
-
+    
     int sockfd;
     struct sockaddr_in serverAddr;
     socklen_t addrLen = sizeof(serverAddr);
     char buffer[MAX_PAYLOAD_SIZE + 8];
     char response[8];
 
-    // Create UDP socket
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         error("socket() failed");
     }
@@ -54,8 +54,11 @@ int main(int argc, char *argv[]) {
     }
 
     struct timeval start, end;
-    double totalRTT = 0.0;
-    int flag=0;
+    FILE *file = fopen(filename, "w");
+    if (!file) {
+        error("Error opening file");
+    }
+
     for (int i = 0; i < NumPackets; i++) {
         uint8_t MT = 1;
         uint16_t SN = htons(i);
@@ -67,46 +70,32 @@ int main(int argc, char *argv[]) {
         memcpy(buffer + 1, &SN, 2);
         memcpy(buffer + 3, &ttl, 1);
         memcpy(buffer + 4, &PL, 4);
-        memset(buffer + 8, 'A', P);//fill with A
-
+        memset(buffer + 8, 'A', P);//filling with 'A' s
+        
         gettimeofday(&start, NULL);
-        sendto(sockfd, buffer, 8 + P, 0, (struct sockaddr *)&serverAddr, addrLen);
-        
-        ssize_t recvLen = recvfrom(sockfd, response, sizeof(response), 0, (struct sockaddr *)&serverAddr, &addrLen);
-        gettimeofday(&end, NULL);
-        
-        if (recvLen < 0) {
-            perror("recvfrom() failed");
-            continue;
-        }
-
-        double rtt = ((end.tv_sec - start.tv_sec) * 1000.0) + ((end.tv_usec - start.tv_usec) / 1000.0);
-        totalRTT += rtt;
-
-        uint8_t receivedMT;
-        memcpy(&receivedMT, response, 1);
-        
-        if (receivedMT == 2) { // Error packet
-            flag=1;
-            uint8_t errorCode;
-            memcpy(&errorCode, response + 3, 1);
-            printf("Packet %d Error: ", (i+1));
-            switch (errorCode) 
-            {
-                case 1: printf("TOO SMALL PACKET RECEIVED\n"); break;
-                case 2: printf("PAYLOAD LENGTH AND PAYLOAD INCONSISTENT\n"); break;
-                case 3: printf("TOO LARGE PAYLOAD LENGTH\n"); break;
-                case 4: printf("TTL VALUE IS NOT EVEN\n"); break;
-                default: printf("Unknown Error\n");
+        while (ttl > 0) {
+            sendto(sockfd, buffer, 8 + P, 0, (struct sockaddr *)&serverAddr, addrLen);
+            ssize_t recvLen = recvfrom(sockfd, response, sizeof(response), 0, (struct sockaddr *)&serverAddr, &addrLen);
+            gettimeofday(&end, NULL);
+            
+            if (recvLen < 0) {
+                perror("recvfrom() failed");
+                break;
             }
-        } 
-        else
-        {
-            printf("Packet %d RTT: %.3f ms\n", (i+1), rtt);
+
+            ttl--;
+            memcpy(buffer + 3, &ttl, 1);
+
+            if (ttl == 0) {
+                double cumulativeRTT = ((end.tv_sec - start.tv_sec) * 1000.0) + ((end.tv_usec - start.tv_usec) / 1000.0);
+                fprintf(file, "%.3f\n", cumulativeRTT);
+                printf("Packet %d Cumulative RTT: %.3f ms\n", i + 1, cumulativeRTT);
+                //fflush(file);
+            }
         }
     }
-    if(flag==0)
-    printf("Average RTT: %.3f ms\n", totalRTT / NumPackets);
+
+    fclose(file);
     close(sockfd);
     return 0;
 }

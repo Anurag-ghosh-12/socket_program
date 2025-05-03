@@ -78,7 +78,7 @@ int main() {
     // Server details
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(PORT);
-    serverAddr.sin_addr.s_addr = inet_addr("10.1.76.64");
+    serverAddr.sin_addr.s_addr = inet_addr("10.2.65.33");
 
     // Connect to server
     if (connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {

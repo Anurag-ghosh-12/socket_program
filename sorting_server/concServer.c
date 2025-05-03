@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include <arpa/inet.h>
 
-#define PORT 3490
+#define PORT 1235
 #define MAX_BUFFER_SIZE 1024
 
 void insertionSort(int arr[], int n) {

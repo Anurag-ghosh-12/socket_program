@@ -65,7 +65,7 @@ int main() {
     if(recvdbytes<=0) {
        printf("[-]Client disconnected. Closing server ... \n");
        break;
-    } 
+    }
     int requestType = atoi(buffer);  // client's request as an integer
 
     memset(buffer, '\0', sizeof(buffer));

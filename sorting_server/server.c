@@ -71,7 +71,7 @@ int main() {
     printf("[+]Server socket created\n");
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(PORT);
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1"); //10.2.65.33 for using college lab 
+    serverAddr.sin_addr.s_addr = inet_addr("10.2.65.33"); //10.2.65.33 for using college lab 
     if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
         perror("[-]Binding failed");
         close(serverSocket);
